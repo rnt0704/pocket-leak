@@ -32,7 +32,28 @@ html, body {
 main {
   max-width: 440px;
   margin: 0 auto;
-  padding: 20px 14px 100px;
+  padding: 16px 14px 100px;
+}
+
+/* TOP STATUS BAR */
+.top-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+.btn-gear {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #c9c5bd;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font: 700 11px var(--mono);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* TOP SPOOL DISPENSER */
@@ -66,7 +87,6 @@ main {
   border-right: 1px solid rgba(0,0,0,0.05);
 }
 
-/* ROBUST SERRATED BOTTOM EDGE (NO BROKEN CSS MASKS) */
 .serrated-bottom {
   display: block;
   width: 100%;
@@ -74,9 +94,7 @@ main {
   margin-top: -1px;
   filter: drop-shadow(0 8px 10px rgba(0,0,0,0.35));
 }
-.serrated-bottom path {
-  fill: var(--paper);
-}
+.serrated-bottom path { fill: var(--paper); }
 
 .receipt-head {
   text-align: center;
@@ -97,7 +115,6 @@ main {
   letter-spacing: 0.5px;
 }
 
-/* STAMP METAPHOR */
 .stamp {
   display: inline-block;
   border: 3px double var(--stamp-green);
@@ -111,7 +128,6 @@ main {
   border-radius: 4px;
 }
 
-/* LEDGER ROWS */
 .slip-row {
   display: flex;
   justify-content: space-between;
@@ -130,7 +146,6 @@ main {
 .divider { border: 0; border-bottom: 1px dashed var(--ink-rule); margin: 12px 0; }
 .divider-double { border: 0; border-bottom: 3px double var(--ink-rule); margin: 14px 0; }
 
-/* INPUT DOCK & SCANNER */
 .entry-dock {
   background: #F0EDE4;
   border: 1px dashed var(--ink-rule);
@@ -171,7 +186,6 @@ main {
 }
 .scan-msg.on { display: block; }
 .scan-msg.success { background: #e6fcf5; color: var(--stamp-green); border: 1px solid var(--stamp-green); }
-.scan-msg.alert { background: #fff5f5; color: var(--stamp-red); border: 1px solid var(--stamp-red); }
 
 .cat-matrix {
   display: grid;
@@ -196,10 +210,7 @@ main {
   font-weight: 700;
 }
 
-.num-in {
-  display: flex;
-  gap: 6px;
-}
+.num-in { display: flex; gap: 6px; }
 .num-in input {
   background: #fff;
   border: 1px solid var(--ink-rule);
@@ -219,7 +230,6 @@ main {
   cursor: pointer;
 }
 
-/* TRANSACTION FEED */
 .feed-item {
   display: flex;
   justify-content: space-between;
@@ -330,6 +340,13 @@ main {
 <body>
 
 <main>
+  <div class="top-status">
+    <div style="font-size:11px;color:#9E988F;font-weight:700;">THERMAL DOCKET</div>
+    <button class="btn-gear" type="button" id="btnOpenSync">
+      <span id="syncStatus">Local only</span> ⚙️
+    </button>
+  </div>
+
   <div class="dispenser"></div>
   
   <article class="receipt">
@@ -429,13 +446,11 @@ main {
     </div>
   </article>
 
-  <!-- PURE SVG SERRATED TEAR EDGE -->
   <svg class="serrated-bottom" viewBox="0 0 440 14" preserveAspectRatio="none">
     <path d="M0,0 L10,14 L20,0 L30,14 L40,0 L50,14 L60,0 L70,14 L80,0 L90,14 L100,0 L110,14 L120,0 L130,14 L140,0 L150,14 L160,0 L170,14 L180,0 L190,14 L200,0 L210,14 L220,0 L230,14 L240,0 L250,14 L260,0 L270,14 L280,0 L290,14 L300,0 L310,14 L320,0 L330,14 L340,0 L350,14 L360,0 L370,14 L380,0 L390,14 L400,0 L410,14 L420,0 L430,14 L440,0 Z"></path>
   </svg>
 </main>
 
-<!-- FLOATING NAV -->
 <nav class="desk-nav">
   <button class="active" onclick="showTab('tape')">📜 Receipt</button>
   <button onclick="showTab('analytics')">📊 Audit Split</button>
@@ -474,6 +489,27 @@ main {
   </div>
 </div>
 
+<!-- GITHUB CLOUD SYNC MODAL -->
+<div class="modal" id="modalSync">
+  <div class="modal-box">
+    <div style="font-weight:700;font-size:14px;border-bottom:1px solid var(--ink);padding-bottom:6px;">SYNC TO PRIVATE GITHUB</div>
+    <p style="font-size:11px;color:var(--ink-faint);margin:6px 0;">Saves your ledger as a private file in a personal repository that you own.</p>
+    <label>Repository (owner/name)</label>
+    <input type="text" id="ghRepo" placeholder="yourname/pocket-leak-data" autocapitalize="off">
+    <label>Personal Access Token</label>
+    <input type="password" id="ghToken" placeholder="github_pat_..." autocomplete="off">
+    <label>File path</label>
+    <input type="text" id="ghPath" value="data.json" autocapitalize="off">
+    <div class="modal-actions">
+      <button class="btn-del" id="btnDisconnectSync">Disconnect</button>
+      <button class="btn-save" id="btnSaveSync">Save & Sync</button>
+    </div>
+    <div style="text-align:center;margin-top:10px;">
+      <button onclick="$('modalSync').classList.remove('on')" style="background:none;border:0;text-decoration:underline;cursor:pointer;font-size:12px;">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const CATS = [
   { name: 'Rations', icon: '🍜', match: ['swiggy','zomato','mart','restaurant','cafe','food','baker','grocer','supermarket','dine'] },
@@ -487,20 +523,43 @@ const CATS = [
 let app = {
   budget: 20000,
   activeCat: 0,
-  logs: []
+  logs: [],
+  updated: Date.now()
 };
 
+let ghCfg = {};
+let ghSha = null;
+let syncTimer = null;
 let activeTxId = null;
 
 try {
   const saved = localStorage.getItem('thermal_ledger_db');
   if (saved) app = Object.assign(app, JSON.parse(saved));
+  const cfg = localStorage.getItem('pocketleak_gh_cfg');
+  if (cfg) ghCfg = JSON.parse(cfg);
 } catch(e) {}
 
 const $ = id => document.getElementById(id);
-const persist = () => localStorage.setItem('thermal_ledger_db', JSON.stringify(app));
 const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
 const isoDate = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+function persist() {
+  app.updated = Date.now();
+  try {
+    localStorage.setItem('thermal_ledger_db', JSON.stringify(app));
+  } catch(e) {}
+
+  // Auto-push to GitHub in background with 1.5s debounce
+  if (ghCfg.repo && ghCfg.token) {
+    setSyncLabel('☁️ Syncing…');
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(pushGitHub, 1500);
+  }
+}
+
+function setSyncLabel(txt) {
+  $('syncStatus').textContent = txt;
+}
 
 function initCats() {
   $('catPicker').innerHTML = CATS.map((c, i) => `
@@ -543,7 +602,6 @@ $('billCamera').addEventListener('change', function() {
   msg.className = 'scan-msg on';
   msg.textContent = 'Analyzing image filename & metadata...';
 
-  // Smart regex on image metadata/filename
   const name = file.name.toLowerCase();
   let matchedCat = 5;
   for (let i = 0; i < CATS.length; i++) {
@@ -553,7 +611,6 @@ $('billCamera').addEventListener('change', function() {
     }
   }
 
-  // Pre-fill tag based on scan
   selectCat(matchedCat);
   const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ');
   $('txTag').value = cleanName.length < 25 ? cleanName : 'Scanned Invoice';
@@ -572,7 +629,7 @@ function render() {
   const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysRemaining = Math.max(1, totalDays - curDay + 1);
 
-  const currentMonthLogs = app.logs.filter(l => l.date.slice(0, 7) === ym);
+  const currentMonthLogs = app.logs.filter(l => l.date && l.date.slice(0, 7) === ym);
   const totalSpent = currentMonthLogs.reduce((acc, x) => acc + x.amount, 0);
   const remaining = app.budget - totalSpent;
 
@@ -689,8 +746,109 @@ function showTab(view) {
   });
 }
 
+/* =========================================
+   GITHUB REST API CLOUD SYNC ENGINE
+   ========================================= */
+
+const ghApi = (method, body) => fetch(`https://api.github.com/repos/${ghCfg.repo}/contents/${ghCfg.path || 'data.json'}`, {
+  method: method,
+  headers: {
+    'Authorization': 'Bearer ' + ghCfg.token,
+    'Accept': 'application/vnd.github+json'
+  },
+  body: body ? JSON.stringify(body) : undefined
+});
+
+async function pullGitHub() {
+  if (!ghCfg.repo || !ghCfg.token) {
+    setSyncLabel('Local only');
+    return;
+  }
+  setSyncLabel('☁️ Syncing…');
+  try {
+    const res = await ghApi('GET');
+    if (res.status === 404) {
+      ghSha = null;
+      return pushGitHub(); // File doesn't exist yet, seed it with local state
+    }
+    if (!res.ok) throw 0;
+    const json = await res.json();
+    ghSha = json.sha;
+    
+    // Decode base64 utf-8
+    const remote = JSON.parse(decodeURIComponent(escape(atob(json.content.replace(/\n/g, '')))));
+    if ((remote.updated || 0) > (app.updated || 0)) {
+      app = Object.assign(app, remote);
+      localStorage.setItem('thermal_ledger_db', JSON.stringify(app));
+      initCats();
+      render();
+    } else if ((remote.updated || 0) < (app.updated || 0)) {
+      return pushGitHub();
+    }
+    setSyncLabel('☁️ Synced');
+  } catch (e) {
+    setSyncLabel('⚠️ Sync failed');
+  }
+}
+
+async function pushGitHub(isRetry) {
+  if (!ghCfg.repo || !ghCfg.token) return;
+  try {
+    app.updated = app.updated || Date.now();
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(app))));
+    const res = await ghApi('PUT', {
+      message: 'Pocket Leak update',
+      content: content,
+      sha: ghSha || undefined
+    });
+
+    if (res.status === 409 || res.status === 422) {
+      if (!isRetry) {
+        const getRes = await ghApi('GET');
+        if (getRes.ok) {
+          ghSha = (await getRes.json()).sha;
+          return pushGitHub(true);
+        }
+      }
+      throw 0;
+    }
+    if (!res.ok) throw 0;
+    ghSha = (await res.json()).content.sha;
+    setSyncLabel('☁️ Synced');
+  } catch (e) {
+    setSyncLabel('⚠️ Sync failed');
+  }
+}
+
+// Gear modal controls
+$('btnOpenSync').onclick = () => {
+  $('ghRepo').value = ghCfg.repo \vert{}\vert{} '';$('ghToken').value = ghCfg.token || '';
+  $('ghPath').value = ghCfg.path \vert{}\vert{} 'data.json';$('modalSync').classList.add('on');
+};
+
+$('btnSaveSync').onclick = async () => {
+  ghCfg = {
+    repo: $('ghRepo').value.trim(),
+    token: $('ghToken').value.trim(),
+    path: $('ghPath').value.trim() || 'data.json'
+  };
+  localStorage.setItem('pocketleak_gh_cfg', JSON.stringify(ghCfg));
+  await pullGitHub();
+  $('modalSync').classList.remove('on');
+};
+
+$('btnDisconnectSync').onclick = () => {
+  ghCfg = {};
+  ghSha = null;
+  localStorage.removeItem('pocketleak_gh_cfg');
+  setSyncLabel('Local only');
+  $('modalSync').classList.remove('on');
+};
+
+// INITIALISE
 initCats();
 render();
+pullGitHub();
 </script>
 </body>
 </html>
