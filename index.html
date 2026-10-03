@@ -188,10 +188,13 @@ const CATS=[
  {name:'Rations',icon:'🍜',match:['swiggy','zomato','mart','restaurant','cafe','food','baker','grocer','supermarket','dine']},
  {name:'Commute',icon:'🛺',match:['uber','ola','fuel','petrol','auto','metro','train','fastag','toll','diesel']},
  {name:'Market',icon:'🛍️',match:['amazon','flipkart','retail','store','clothing','myntra','mall','zara']},
- {name:'Utility',icon:'💡',match:['bescom','airtel','jio','bill','wifi','electric','gas','rent','broadband']},
+ {name:'Bills',icon:'💡',match:['bescom','airtel','jio','bill','wifi','electric','gas','broadband','recharge']},
  {name:'Wellness',icon:'💊',match:['pharmacy','apollo','med','hospital','clinic','gym','1mg']},
- {name:'Misc',icon:'🧾',match:[]}
+ {name:'Misc',icon:'🧾',match:[]},
+ {name:'Rent',icon:'🏠',match:['rent','landlord','housing','maintenance']},
+ {name:'EMI',icon:'🏦',match:['emi','loan','bajaj','installment']}
 ];
+const ORDER=[0,1,2,3,6,7,4,5]; // display order; indexes stay fixed so saved data keeps working
 const $=id=>document.getElementById(id);
 const fmt=n=>'₹'+Math.round(n).toLocaleString('en-IN');
 const isoDate=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
@@ -226,8 +229,8 @@ function persist(){
 }
 
 function initCats(){
-  $('catPicker').innerHTML=CATS.map((c,i)=>`<div class="cat-pill" role="radio" tabindex="0" aria-checked="${i===app.activeCat}" data-i="${i}">${c.icon} ${c.name}</div>`).join('');
-  $('editCat').innerHTML=CATS.map((c,i)=>`<option value="${i}">${c.icon} ${c.name}</option>`).join('');
+  $('catPicker').innerHTML=ORDER.map(i=>{const c=CATS[i];return `<div class="cat-pill" role="radio" tabindex="0" aria-checked="${i===app.activeCat}" data-i="${i}">${c.icon} ${c.name}</div>`}).join('');
+  $('editCat').innerHTML=ORDER.map(i=>`<option value="${i}">${CATS[i].icon} ${CATS[i].name}</option>`).join('');
 }
 function selectCat(i){app.activeCat=i;store();initCats()}
 $('catPicker').onclick=e=>{const p=e.target.closest('.cat-pill');if(p)selectCat(+p.dataset.i)};
@@ -287,7 +290,7 @@ function render(){
   $('tapeLogs').innerHTML=sorted.length?sorted.map(t=>{const c=CATS[t.cat]||CATS[5];
     return `<div class="feed-item" data-id="${t.id}"><div class="feed-meta"><b>${esc(t.tag)}</b><small>${esc(t.date)} · ${c.icon} ${c.name}</small></div><div style="font-weight:700;">${fmt(t.amount)}</div></div>`}).join(''):'<div style="text-align:center;padding:12px;color:var(--ink-faint);font-size:12px;">-- TAPE EMPTY --</div>';
 
-  $('categoryBreakdown').innerHTML=CATS.map((c,i)=>{
+  $('categoryBreakdown').innerHTML=ORDER.map(i=>{const c=CATS[i];
     const v=month.filter(l=>l.cat===i).reduce((s,x)=>s+x.amount,0);
     const p=spent>0?(v/spent*100).toFixed(0):0;
     return `<div class="slip-row"><span>${c.icon} ${c.name} (${p}%)</span><span class="dotted"></span><b>${fmt(v)}</b></div>`}).join('');
