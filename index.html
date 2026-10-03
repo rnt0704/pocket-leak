@@ -63,6 +63,15 @@ button,input,select{font-family:inherit}
 .desk-nav button{background:transparent;border:0;color:#98948d;padding:10px 18px;border-radius:20px;font:700 12px var(--mono);cursor:pointer}
 .desk-nav button.active{background:var(--paper);color:var(--ink)}
 .barcode{letter-spacing:5px;font-size:16px;text-align:center;margin-top:18px;opacity:.65}
+.month-nav{display:flex;align-items:center;justify-content:space-between;margin:-4px 0 14px}
+.month-nav button{background:var(--ink);color:#fff;border:0;border-radius:6px;width:46px;height:38px;font:700 14px var(--mono);cursor:pointer}
+.month-nav button:disabled{opacity:.2;cursor:default}
+#mLabel{font-weight:700;cursor:pointer;font-size:12px;letter-spacing:1px;text-align:center}
+.mrow{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:12px;cursor:pointer}
+.mrow span:first-child{width:64px}
+.mbar{flex:1;height:9px;background:var(--ink-rule);border-radius:5px;overflow:hidden}
+.mbar i{display:block;height:100%}
+.mrow b{min-width:68px;text-align:right}
 .hidden{display:none!important}
 </style>
 </head>
@@ -82,6 +91,7 @@ button,input,select{font-family:inherit}
       <div class="stamp" id="stampLabel">[ AUDITING... ]</div>
     </div>
 
+    <div class="month-nav"><button type="button" id="mPrev" aria-label="Previous month">◀</button><span id="mLabel" title="Tap to jump to this month">--</span><button type="button" id="mNext" aria-label="Next month">▶</button></div>
     <div id="view-tape">
       <div class="slip-row bold"><span>BUDGET CEILING</span><span class="dotted"></span><span id="lblBudget" style="cursor:pointer;text-decoration:underline;">₹20,000</span></div>
       <div class="slip-row"><span>TOTAL DISCHARGED</span><span class="dotted"></span><b id="lblSpent">₹0</b></div>
@@ -91,7 +101,7 @@ button,input,select{font-family:inherit}
       <div class="slip-row faint"><span>ACTUAL DAILY DRAIN</span><span class="dotted"></span><span id="lblActualRate">₹0 / DAY</span></div>
       <div class="slip-row faint"><span>BURNOUT PROJECTION</span><span class="dotted"></span><span id="lblBurnout">STABLE</span></div>
 
-      <div class="entry-dock">
+      <div class="entry-dock" id="dock">
         <div class="scanner-strip">
           <input type="file" id="billCamera" accept="image/*" capture="environment" style="display:none">
           <button class="btn-scan" type="button" id="btnScan">📷 PHOTO OF BILL</button>
@@ -106,7 +116,7 @@ button,input,select{font-family:inherit}
       </div>
 
       <hr class="divider-double">
-      <div style="text-align:center;font-size:11px;letter-spacing:1px;margin-bottom:10px;">--- RECENT TRANSACTIONS ---</div>
+      <div id="tapeTitle" style="text-align:center;font-size:11px;letter-spacing:1px;margin-bottom:10px;">--- THIS MONTH ---</div>
       <div id="tapeLogs"></div>
       <div class="barcode">||| | |||| | | |||| || |</div>
       <div style="text-align:center;font-size:10px;color:var(--ink-faint);margin-top:4px;">THANK YOU FOR TRACKING YOUR RUNWAY</div>
@@ -121,6 +131,10 @@ button,input,select{font-family:inherit}
         <div class="slip-row"><span>Days Elapsed:</span> <b id="daysPast">--</b></div>
         <div class="slip-row"><span>Days Remaining:</span> <b id="daysLeft">--</b></div>
       </div>
+      <hr class="divider">
+      <div style="text-align:center;font-weight:700;margin-bottom:6px;">MONTH BY MONTH</div>
+      <div id="monthHistory"></div>
+      <div class="msg" style="text-align:center;">Tap a month to open its receipt. Red bars are over budget.</div>
       <div class="barcode" style="margin-top:24px;">|||| || | ||| |||| | |</div>
     </div>
   </article>
@@ -203,6 +217,7 @@ try{
 }catch(e){}
 if(!Array.isArray(app.logs))app.logs=[];
 
+let viewYM=null;
 function setSyncLabel(t){$('syncStatus').textContent=t}
 function store(){try{localStorage.setItem('thermal_ledger_db',JSON.stringify(app))}catch(e){}}
 function persist(){
@@ -245,27 +260,30 @@ $('billCamera').addEventListener('change',function(){
 function render(){
   const now=new Date();
   $('slipDate').textContent=now.toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
-  const ym=isoDate(now).slice(0,7),curDay=now.getDate();
-  const totalDays=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
-  const daysRemaining=Math.max(1,totalDays-curDay+1);
+  const curYM=isoDate(now).slice(0,7),ym=viewYM||curYM,isCur=ym===curYM;
+  const [vy,vm]=ym.split('-').map(Number);
+  const totalDays=new Date(vy,vm,0).getDate();
+  const curDay=isCur?now.getDate():totalDays;
+  const daysRemaining=isCur?Math.max(1,totalDays-curDay+1):0;
   const month=app.logs.filter(l=>l.date&&l.date.slice(0,7)===ym);
   const spent=month.reduce((a,x)=>a+x.amount,0);
   const remaining=app.budget-spent;
   $('lblBudget').textContent=fmt(app.budget);
   $('lblSpent').textContent=fmt(spent);
   $('lblRemaining').textContent=(remaining<0?'-':'')+fmt(Math.abs(remaining));
-  const allowable=remaining>0?remaining/daysRemaining:0;
+  const allowable=remaining>0&&isCur?remaining/daysRemaining:0;
   const actual=spent/curDay;
   const pace=app.budget>0?actual/(app.budget/totalDays):1;
-  $('lblTargetRate').textContent=fmt(allowable)+' / DAY';
+  $('lblTargetRate').textContent=isCur?fmt(allowable)+' / DAY':'—';
   $('lblActualRate').textContent=fmt(actual)+' / DAY';
   const st=$('stampLabel'),bo=$('lblBurnout');
   const paint=(txt,col,b)=>{st.textContent=txt;st.style.borderColor=col;st.style.color=col;bo.textContent=b;bo.style.color=col};
-  if(remaining<=0)paint('[ REJECTED: DEPLETED ]','var(--stamp-red)','FUNDS EXHAUSTED');
+  if(!isCur)paint(remaining>=0?'[ CLOSED // UNDER BUDGET ]':'[ CLOSED // OVER BUDGET ]',remaining>=0?'var(--stamp-green)':'var(--stamp-red)','MONTH CLOSED');
+  else if(remaining<=0)paint('[ REJECTED: DEPLETED ]','var(--stamp-red)','FUNDS EXHAUSTED');
   else if(pace>1.2&&actual>0)paint('[ CAUTION: HIGH PACE ]','var(--stamp-amber)',`DEPLETION IN ~${Math.floor(remaining/actual)} DAYS`);
   else paint('[ APPROVED // ON PACE ]','var(--stamp-green)','SOLVENT TILL MONTH-END');
 
-  const sorted=[...app.logs].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.id-a.id).slice(0,60);
+  const sorted=[...month].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.id-a.id);
   $('tapeLogs').innerHTML=sorted.length?sorted.map(t=>{const c=CATS[t.cat]||CATS[5];
     return `<div class="feed-item" data-id="${t.id}"><div class="feed-meta"><b>${esc(t.tag)}</b><small>${esc(t.date)} · ${c.icon} ${c.name}</small></div><div style="font-weight:700;">${fmt(t.amount)}</div></div>`}).join(''):'<div style="text-align:center;padding:12px;color:var(--ink-faint);font-size:12px;">-- TAPE EMPTY --</div>';
 
@@ -276,6 +294,20 @@ function render(){
   $('paceRatio').textContent=pace.toFixed(2)+'x target';
   $('daysPast').textContent=curDay+' days';
   $('daysLeft').textContent=daysRemaining+' days';
+
+  $('mLabel').textContent=new Date(vy,vm-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'}).toUpperCase()+(isCur?' · NOW':'');
+  const first=app.logs.map(l=>(l.date||'').slice(0,7)).filter(Boolean).sort()[0]||curYM;
+  $('mPrev').disabled=ym<=first;$('mNext').disabled=isCur;
+  $('dock').classList.toggle('hidden',!isCur);
+  $('tapeTitle').textContent=isCur?'--- THIS MONTH ---':'--- PAST TRANSACTIONS ---';
+
+  const tot={};app.logs.forEach(l=>{const k=(l.date||'').slice(0,7);if(k)tot[k]=(tot[k]||0)+l.amount});tot[curYM]=tot[curYM]||0;
+  const keys=Object.keys(tot).sort().reverse().slice(0,12);
+  const mx=Math.max(app.budget,...keys.map(k=>tot[k]))||1;
+  $('monthHistory').innerHTML=keys.map(k=>{
+    const [y,m]=k.split('-').map(Number);
+    const lab=new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'short',year:'2-digit'}).toUpperCase();
+    return `<div class="mrow" data-ym="${k}"><span>${lab}${k===ym?' ◀':''}</span><span class="mbar"><i style="width:${tot[k]/mx*100}%;background:${tot[k]>app.budget?'var(--stamp-red)':'var(--ink)'}"></i></span><b>${fmt(tot[k])}</b></div>`}).join('');
 }
 
 $('tapeLogs').onclick=e=>{
@@ -326,7 +358,9 @@ async function pullGitHub(){
     if(res.status===404){ghSha=null;return pushGitHub()}
     if(!res.ok)throw res.status;
     const json=await res.json();ghSha=json.sha;
-    const remote=migrate(JSON.parse(decodeURIComponent(escape(atob(json.content.replace(/\n/g,''))))));
+    const raw=atob((json.content||'').replace(/\n/g,''));
+    if(!raw.trim())return pushGitHub(); // file exists but is empty: fill it with the local ledger
+    const remote=migrate(JSON.parse(decodeURIComponent(escape(raw))));
     if((remote.updated||0)>(app.updated||0)){
       app=Object.assign(app,remote);if(!Array.isArray(app.logs))app.logs=[];
       store();initCats();render();
@@ -363,14 +397,22 @@ $('btnSaveSync').onclick=async()=>{
   else{
     const hint=lastErr===401?'GitHub rejected the token. Check it was copied fully and has not expired.'
       :lastErr===403||lastErr===404?'Repo not found, or the token cannot write to it. Check the owner/name and that the token has Contents: Read and write on that repo.'
-      :'Could not reach GitHub. Check your internet and try again.';
-    $('syncMsg').textContent=hint+(lastErr?` (HTTP ${lastErr})`:'');
+      :typeof lastErr==='number'||!lastErr?'Could not reach GitHub. Check your internet and try again.'
+      :'Connected to GitHub, but the data file is not valid. Delete data.json in the repo and try again.';
+    $('syncMsg').textContent=hint+(typeof lastErr==='number'?` (HTTP ${lastErr})`:'');
   }
 };
 $('btnDisconnectSync').onclick=()=>{
   ghCfg={};ghSha=null;try{localStorage.removeItem('pocketleak_gh_cfg')}catch(e){}
   setSyncLabel('Local only');$('modalSync').classList.remove('on');
 };
+
+const curNow=()=>isoDate(new Date()).slice(0,7);
+const shiftYM=(ym,d)=>{const [y,m]=ym.split('-').map(Number);const dt=new Date(y,m-1+d,1);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')};
+$('mPrev').onclick=()=>{viewYM=shiftYM(viewYM||curNow(),-1);render()};
+$('mNext').onclick=()=>{const n=shiftYM(viewYM||curNow(),1);viewYM=n>=curNow()?null:n;render()};
+$('mLabel').onclick=()=>{viewYM=null;render()};
+$('monthHistory').onclick=e=>{const r=e.target.closest('.mrow');if(!r)return;viewYM=r.dataset.ym>=curNow()?null:r.dataset.ym;render();document.querySelector('[data-tab=tape]').click()};
 
 initCats();render();pullGitHub();
 </script>
